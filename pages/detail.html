@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>In-Football</title>
+    <meta name="description" content="A PWA App for Football Lovers">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+    <link rel="stylesheet" href="../css/materialize.min.css" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="manifest" href="../manifest.json">
+    <link rel="shortcut icon" type="image/png" href="/img/icon/icon.png" />
+    <meta name="theme-color" content="#039be5">
+</head>
+
+<body>
+    <!-- Navigasi -->
+    <nav class="light-blue" role="navigation">
+        <div class="nav-wrapper container">
+            <a href="../index.html" class="brand-logo" id="logo-container">In-Football</a>
+            <a href="../index.html" class="sidenav-trigger" data-target="nav-mobile"><i class="material-icons">arrow_back</i></a>
+
+            <ul class="topnav right hide-on-med-and-down"></ul>
+            <ul class="sidenav" id="nav-mobile"></ul>
+        </div>
+    </nav>
+    <!-- Akhir Navigasi -->
+
+    <div class="container" id="body-content"></div>
+
+    <script src="../js/materialize.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script type="text/javascript" src="/js/idb.js"></script>
+    <script>
+        // Register Service Worker
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker
+                    .register("../service-worker.js")
+                    .then(function () {
+                        console.log("Pendaftaran service worker berhasil!");
+                    })
+                    .catch(function () {
+                        console.log("Pendaftaran service worker gagal!");
+                    });
+            })
+        } else {
+            console.log("Service worker belum didukung oleh browser ini!")
+        }
+
+        // Request API untuk pertama kali
+        document.addEventListener("DOMContentLoaded", function () {
+            getTeamByID();
+        });
+
+        var dbPromise = idb.open("db-infootball", 1, function (upgradeDb) {
+            if (!upgradeDb.objectStoreNames.contains("clubs")) {
+                var clubs = upgradeDb.createObjectStore("clubs", {
+                    keyPath: "id_club"
+                });
+                // clubs.createIndex("id_club", "id_club", {unique : true})
+                // clubs.createIndex("name", "name", {unique : false})
+                // clubs.createIndex("url_logo", "url_logo", {unique : false})
+            }
+        })
+
+        var isFavorite = false;
+
+        function checkIsFavorite(id) {
+            dbPromise.then(function (db) {
+                var tx = db.transaction("clubs", "readonly");
+                var store = tx.objectStore("clubs");
+                var id_club = parseInt(id, 10);
+                return store.get(id_club);
+            }).then(function (val) {
+                if (val != undefined) {
+                    isFavorite = true;
+                    console.log("Item already favorited!")
+                    document.getElementById("iconFavorite").innerHTML = "favorite";
+                }
+            });
+        }
+
+        function toggleFavorite(id, name, urlCrest, urlWebsite) {
+            if (!isFavorite) {
+                dbPromise.then(function (db) {
+                    var tx = db.transaction("clubs", "readwrite");
+                    var store = tx.objectStore("clubs");
+                    var item = {
+                        id_club: id,
+                        name: name,
+                        url_logo: urlCrest,
+                        url_website: urlWebsite
+                    }
+
+                    store.put(item);
+                    return tx.complete;
+                }).then(function () {
+                    console.log("Item saved!")
+                    isFavorite = true;
+                    document.getElementById("iconFavorite").innerHTML = "favorite";
+                }).catch(function (err) {
+                    console.log("Failed to save!")
+                    console.log(err)
+                })
+            } else {
+                dbPromise.then(function (db) {
+                    var tx = db.transaction("clubs", "readwrite");
+                    var store = tx.objectStore("clubs");
+                    store.delete(id);
+                    return tx.complete;
+                }).then(function () {
+                    console.log("Item un-favorited!")
+                    isFavorite = false;
+                    document.getElementById("iconFavorite").innerHTML = "favorite_border";
+                })
+            }
+        }
+    </script>
+</body>
+
+</html>
